@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor Russia — Intelligence Artificielle</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Animated pulse for "live" indicator */
+    @keyframes pulse {
+      0%, 100% { opacity: 0.8; }
+      50%       { opacity: 0.35; }
+    }
+    .live-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(80, 200, 120, 0.85);
+      margin-right: 6px;
+      vertical-align: middle;
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+
+    /* Code-like block */
+    .code-block {
+      background: rgba(10, 16, 26, 0.6);
+      border: 1px solid rgba(80, 110, 160, 0.15);
+      border-radius: 8px;
+      padding: 18px 22px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 12.5px;
+      color: rgba(170, 195, 235, 0.72);
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+    .code-block .kw  { color: rgba(130, 170, 240, 0.85); }
+    .code-block .str { color: rgba(140, 210, 150, 0.8);  }
+    .code-block .num { color: rgba(220, 175, 110, 0.8);  }
+    .code-block .cmt { color: rgba(120, 140, 165, 0.5); font-style: italic; }
+
+    /* Progress bars */
+    .progress-bar-wrap {
+      background: rgba(30, 40, 58, 0.5);
+      border-radius: 3px;
+      height: 4px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, rgba(80,130,220,0.6), rgba(100,200,160,0.6));
+    }
+
+    .model-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(100,130,170,0.08);
+    }
+    .model-row:last-child { border-bottom: none; }
+    .model-name  { font-size: 0.88rem; font-weight: 500; color: rgba(210,225,248,0.88); min-width: 180px; }
+    .model-score { font-size: 0.82rem; color: rgba(140,165,205,0.6); margin-left: auto; white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <ul class="nav-links">
+      <li><a href="index.html"        class="nav-link">Accueil</a></li>
+      <li><a href="carte.html"        class="nav-link">Carte</a></li>
+      <li><a href="informations.html" class="nav-link">Informations sur la Russie</a></li>
+      <li><a href="ia.html"           class="nav-link active">Intelligence Artificielle</a></li>
+      <li><a href="about.html"        class="nav-link">À propos de nous</a></li>
+    </ul>
+  </nav>
+
+  <main class="page-content">
+
+    <section class="hero">
+      <p class="hero-label">Analyse automatisée · IA & traitement du signal</p>
+      <h1>Intelligence Artificielle</h1>
+      <p class="subtitle">
+        Outils d'analyse alimentés par l'IA pour le suivi des sources russophones,
+        la détection d'anomalies et la synthèse automatique des événements.
+      </p>
+    </section>
+
+    <!-- Status système -->
+    <section class="section">
+      <p class="section-title">État du système</p>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value"><span class="live-dot"></span>4</div>
+          <div class="stat-label">Modèles actifs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">98,3 %</div>
+          <div class="stat-label">Disponibilité (30 j.)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">1,4 s</div>
+          <div class="stat-label">Latence moyenne</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">24 M</div>
+          <div class="stat-label">Requêtes ce mois</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Fonctionnalités IA -->
+    <section class="section">
+      <p class="section-title">Fonctionnalités disponibles</p>
+      <div class="feature-grid">
+
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <div class="feature-title">
+            Veille automatique
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="feature-desc">
+            Collecte et classification continue de plus de 200 sources russophones
+            (presse, Telegram, forums). Détection automatique des sujets émergents
+            par clustering sémantique.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <div class="feature-title">
+            Résumés automatiques
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="feature-desc">
+            Génération de synthèses quotidiennes en français à partir des flux
+            d'information. Chaque résumé inclut un indice de fiabilité des sources
+            et les éléments de contexte essentiels.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📡</div>
+          <div class="feature-title">
+            Détection d'anomalies
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="feature-desc">
+            Surveillance des indicateurs inhabituels : pics d'activité sur les réseaux
+            militaires, changements de narratif dans les médias d'État, mouvements
+            de troupes signalés dans des sources ouvertes (OSINT).
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🌐</div>
+          <div class="feature-title">
+            Traduction contextuelle
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="feature-desc">
+            Traduction automatique russe → français avec préservation du registre
+            et des connotations politiques. Glossaire spécialisé pour le vocabulaire
+            militaire, diplomatique et économique russe.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <div class="feature-title">
+            Analyse de sentiment
+            <span class="badge badge-beta">Bêta</span>
+          </div>
+          <div class="feature-desc">
+            Mesure de l'opinion publique russe en ligne à travers l'analyse de
+            commentaires sur VK, Telegram et les plateformes nationales. Suivi
+            longitudinal des tendances par région.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔗</div>
+          <div class="feature-title">
+            Cartographie des réseaux
+            <span class="badge badge-beta">Bêta</span>
+          </div>
+          <div class="feature-desc">
+            Visualisation des liens entre entités (personnalités, entreprises,
+            institutions) extraits automatiquement des articles analysés. Identification
+            des oligarques et de leurs réseaux d'influence.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🎙️</div>
+          <div class="feature-title">
+            Analyse audio/vidéo
+            <span class="badge badge-soon">Bientôt</span>
+          </div>
+          <div class="feature-desc">
+            Transcription et analyse automatique des discours officiels russes,
+            émissions télévisées et contenus Telegram. Détection de deepfakes
+            et vérification d'authenticité.
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📈</div>
+          <div class="feature-title">
+            Prédiction d'événements
+            <span class="badge badge-soon">Bientôt</span>
+          </div>
+          <div class="feature-desc">
+            Modèle prédictif entraîné sur les séquences historiques d'événements
+            pour estimer la probabilité de scénarios (escalade militaire, crise
+            économique, changement politique).
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Modèles actifs -->
+    <section class="section">
+      <p class="section-title">Modèles déployés</p>
+      <div class="card" style="max-width: 720px;">
+        <div class="model-row">
+          <div class="model-name">MR-Classify v2.4</div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:rgba(130,155,195,0.5);margin-bottom:4px;">Classification thématique · Précision</div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:93%"></div></div>
+          </div>
+          <div class="model-score">93,1 %</div>
+        </div>
+        <div class="model-row">
+          <div class="model-name">MR-Summarize v1.8</div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:rgba(130,155,195,0.5);margin-bottom:4px;">Résumé automatique · ROUGE-L</div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:87%"></div></div>
+          </div>
+          <div class="model-score">0.87</div>
+        </div>
+        <div class="model-row">
+          <div class="model-name">MR-Anomaly v3.1</div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:rgba(130,155,195,0.5);margin-bottom:4px;">Détection d'anomalies · Rappel</div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:81%"></div></div>
+          </div>
+          <div class="model-score">81,4 %</div>
+        </div>
+        <div class="model-row">
+          <div class="model-name">MR-Translate v2.0</div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:rgba(130,155,195,0.5);margin-bottom:4px;">Traduction RU→FR · BLEU</div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:89%"></div></div>
+          </div>
+          <div class="model-score">0.89</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Exemple de sortie API -->
+    <section class="section">
+      <p class="section-title">Exemple de sortie API</p>
+      <div class="code-block">
+        <span class="cmt">// Requête POST /api/v1/analyze</span><br>
+        {<br>
+        &nbsp;&nbsp;<span class="str">"source"</span>: <span class="str">"ria.ru"</span>,<br>
+        &nbsp;&nbsp;<span class="str">"text"</span>: <span class="str">"Министерство обороны сообщило о проведении..."</span>,<br>
+        &nbsp;&nbsp;<span class="str">"lang"</span>: <span class="str">"ru"</span><br>
+        }<br><br>
+        <span class="cmt">// Réponse</span><br>
+        {<br>
+        &nbsp;&nbsp;<span class="str">"category"</span>: <span class="str">"military"</span>,<br>
+        &nbsp;&nbsp;<span class="str">"confidence"</span>: <span class="num">0.968</span>,<br>
+        &nbsp;&nbsp;<span class="str">"summary_fr"</span>: <span class="str">"Le ministère de la Défense a annoncé la tenue d'exercices..."</span>,<br>
+        &nbsp;&nbsp;<span class="str">"anomaly_score"</span>: <span class="num">0.12</span>,<br>
+        &nbsp;&nbsp;<span class="str">"entities"</span>: [<span class="str">"Министерство обороны"</span>, <span class="str">"Россия"</span>],<br>
+        &nbsp;&nbsp;<span class="str">"sentiment"</span>: <span class="str">"neutral"</span>,<br>
+        &nbsp;&nbsp;<span class="str">"processed_at"</span>: <span class="str">"2026-03-12T08:43:21Z"</span><br>
+        }
+      </div>
+    </section>
+
+    <div class="page-footer"></div>
+  </main>
+
+  <script src="nav.js"></script>
+</body>
+</html>

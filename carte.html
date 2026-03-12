@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor Russia — Carte</title>
+
+  <!-- CesiumJS (3D globe) -->
+  <script>window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/';</script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
+
+  <!-- Leaflet (2D flat map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <style>
+    html, body { overflow: hidden; height: 100%; }
+    main.page-content { overflow: visible; padding: 0; margin: 0; }
+
+    /* ── Couche 3D — CesiumJS ────────────────────────────────────── */
+    #globe-hero {
+      position: fixed;
+      inset: 0;
+      background: #090c10;
+      z-index: 0;
+    }
+    #cesiumContainer {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* ── Couche 2D — Leaflet ─────────────────────────────────────── */
+    #map2d {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: #090c10;
+      display: none;
+    }
+    /* Override Leaflet chrome */
+    .leaflet-container { background: #090c10 !important; font-family: 'Inter', sans-serif; }
+    .leaflet-control-zoom { display: none !important; }
+    .leaflet-control-attribution {
+      background: rgba(9,12,16,0.55) !important;
+      color: rgba(140,165,200,0.35) !important;
+      font-size: 9px !important;
+    }
+    .leaflet-control-attribution a { color: rgba(140,165,200,0.45) !important; }
+
+    /* ── Fondus — par-dessus les deux couches ────────────────────── */
+    #globe-fades {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .gfade { position: absolute; pointer-events: none; }
+    .gfade-top    { top:0;left:0;right:0;height:90px;
+      background: linear-gradient(to bottom,#090c10,transparent); }
+    .gfade-bottom { bottom:0;left:0;right:0;height:28%;
+      background: linear-gradient(to bottom,transparent,#090c10); }
+    .gfade-left   { top:0;left:0;bottom:0;width:8%;
+      background: linear-gradient(to right,#090c10,transparent); }
+    .gfade-right  { top:0;right:0;bottom:0;width:8%;
+      background: linear-gradient(to left,#090c10,transparent); }
+
+    /* ── Écran de chargement (Cesium uniquement) ─────────────────── */
+    #globe-loading {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #090c10; z-index: 20; gap: 14px;
+      color: rgba(140,165,205,0.55); font-size: 13px;
+      letter-spacing: 0.3px; transition: opacity 0.6s ease;
+      font-family: 'Inter', sans-serif;
+    }
+    #globe-loading.hidden { opacity: 0; pointer-events: none; }
+    .loader-ring {
+      width: 36px; height: 36px;
+      border: 2px solid rgba(100,130,170,0.15);
+      border-top-color: rgba(100,150,210,0.55);
+      border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Navbar au-dessus de tout ────────────────────────────────── */
+    .navbar { z-index: 100; position: relative; }
+
+    /* ── Boutons de vue — haut gauche ───────────────────────────── */
+    #view-buttons {
+      position: fixed; top: 60px; left: 28px;
+      z-index: 50; display: flex; gap: 6px;
+    }
+    .view-btn {
+      background: rgba(9,12,16,0.72);
+      border: 1px solid rgba(100,130,170,0.22);
+      border-radius: 6px; padding: 6px 14px;
+      font-size: 12px; font-family: 'Inter', sans-serif;
+      color: rgba(180,200,235,0.72); cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .view-btn:hover, .view-btn.active {
+      background: rgba(45,60,82,0.90);
+      color: rgba(220,232,255,0.95);
+      border-color: rgba(100,140,200,0.38);
+    }
+
+    /* ── Bouton couche — haut droite ────────────────────────────── */
+    #btn-layer {
+      position: fixed; top: 60px; right: 28px; z-index: 50;
+      background: rgba(10,28,24,0.78);
+      border: 1px solid rgba(60,150,110,0.38);
+      border-radius: 6px; padding: 6px 14px;
+      font-size: 12px; font-family: 'Inter', sans-serif;
+      color: rgba(130,210,175,0.85); cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    #btn-layer:hover {
+      background: rgba(20,55,45,0.92);
+      border-color: rgba(60,180,130,0.55);
+      color: rgba(170,235,205,0.98);
+    }
+
+    /* ── Légende contrôles — bas centré ─────────────────────────── */
+    #globe-controls {
+      position: fixed; bottom: 22px; left: 50%;
+      transform: translateX(-50%); z-index: 50;
+      background: rgba(9,12,16,0.58); backdrop-filter: blur(8px);
+      border: 1px solid rgba(100,130,170,0.12);
+      border-radius: 8px; padding: 8px 18px;
+      font-size: 11px; color: rgba(140,165,205,0.48);
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap; pointer-events: none;
+    }
+    #globe-controls span { color: rgba(180,200,235,0.68); font-weight: 500; }
+
+    /* ── Override Cesium chrome ──────────────────────────────────── */
+    .cesium-widget canvas { border-radius: 0; }
+    .cesium-viewer-toolbar { display: none !important; }
+    .cesium-credit-container, .cesium-credit-logoContainer {
+      opacity: 0.18 !important; filter: grayscale(1) !important; z-index: 50 !important;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <ul class="nav-links">
+      <li><a href="index.html"        class="nav-link">Accueil</a></li>
+      <li><a href="carte.html"        class="nav-link active">Carte</a></li>
+      <li><a href="informations.html" class="nav-link">Informations sur la Russie</a></li>
+      <li><a href="ia.html"           class="nav-link">Intelligence Artificielle</a></li>
+      <li><a href="about.html"        class="nav-link">À propos de nous</a></li>
+    </ul>
+  </nav>
+
+  <!-- Globe 3D (Cesium) -->
+  <div id="globe-hero">
+    <div id="cesiumContainer"></div>
+    <div id="globe-loading">
+      <div class="loader-ring"></div>
+      Chargement du globe…
+    </div>
+  </div>
+
+  <!-- Carte 2D (Leaflet) — cachée par défaut -->
+  <div id="map2d"></div>
+
+  <!-- Fondus — par-dessus les deux couches -->
+  <div id="globe-fades">
+    <div class="gfade gfade-top"></div>
+    <div class="gfade gfade-bottom"></div>
+    <div class="gfade gfade-left"></div>
+    <div class="gfade gfade-right"></div>
+  </div>
+
+  <!-- Boutons de vue -->
+  <div id="view-buttons">
+    <button class="view-btn active" id="btn-3d">Globe 3D</button>
+    <button class="view-btn"        id="btn-2d">Vue 2D</button>
+    <button class="view-btn"        id="btn-col">Columbus</button>
+  </div>
+
+  <!-- Bouton couche (tout à droite) -->
+  <button id="btn-layer">Carte OSM</button>
+
+  <!-- Légende contrôles -->
+  <div id="globe-controls">
+    <span>Clic gauche</span> — Pivoter &nbsp;·&nbsp;
+    <span>Clic droit</span> — Zoom &nbsp;·&nbsp;
+    <span>Molette</span> — Zoom &nbsp;·&nbsp;
+    <span>Maj + clic</span> — Incliner
+  </div>
+
+  <script src="nav.js"></script>
+  <script>
+  (function () {
+
+    // ════════════════════════════════════════════════════════════════
+    //  ÉTAT GLOBAL
+    // ════════════════════════════════════════════════════════════════
+    var currentLayer = 'sat';   // 'sat' | 'osm'
+    var activeView   = '3d';    // '3d' | '2d' | 'col'
+    var leafletMap   = null;
+    var lSat = null, lOSM = null;
+
+    // ════════════════════════════════════════════════════════════════
+    //  FOURNISSEURS DE TUILES
+    // ════════════════════════════════════════════════════════════════
+    var SAT_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+    var OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    function makeCesiumSat() {
+      return new Cesium.UrlTemplateImageryProvider({ url: SAT_URL, maximumLevel: 19, credit: '© Esri' });
+    }
+    function makeCesiumOSM() {
+      return new Cesium.UrlTemplateImageryProvider({ url: OSM_URL, maximumLevel: 19, credit: '© OpenStreetMap' });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CESIUM — GLOBE 3D / COLUMBUS
+    // ════════════════════════════════════════════════════════════════
+    Cesium.Ion.defaultAccessToken = '';
+
+    window._cesiumViewer = null; // exposé globalement pour debug
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+      baseLayer:            false,
+      terrainProvider:      new Cesium.EllipsoidTerrainProvider(),
+      baseLayerPicker:      false,
+      geocoder:             false,
+      homeButton:           false,
+      sceneModePicker:      false,
+      navigationHelpButton: false,
+      animation:            false,
+      timeline:             false,
+      fullscreenButton:     false,
+      infoBox:              false,
+      selectionIndicator:   false,
+      shadows:              false,
+      shouldAnimate:        false
+    });
+
+    window._cesiumViewer = viewer; // debug global
+    viewer.imageryLayers.addImageryProvider(makeCesiumSat());
+
+    viewer.scene.backgroundColor      = Cesium.Color.fromCssColorString('#090c10');
+    viewer.scene.skyBox.show           = true;
+    viewer.scene.sun.show              = true;
+    viewer.scene.moon.show             = false;
+    viewer.scene.skyAtmosphere.show    = true;
+    viewer.scene.skyAtmosphere.saturationShift = -0.2;
+    viewer.scene.skyAtmosphere.brightnessShift = -0.1;
+
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(95.0, 62.0, 8200000),
+      orientation: { heading: 0.0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0.0 }
+    });
+
+    // Repositionne la caméra après chaque transition de mode
+    function setCameraForMode(mode) {
+      if (mode === Cesium.SceneMode.SCENE3D) {
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(95.0, 62.0, 8200000),
+          orientation: { heading: 0.0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0.0 },
+          duration: 1.0
+        });
+      } else if (mode === Cesium.SceneMode.COLUMBUS_VIEW) {
+        // Vue oblique 45° — montre la carte "posée à plat" en perspective
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(95.0, 35.0, 13000000),
+          orientation: {
+            heading: 0.0,
+            pitch: Cesium.Math.toRadians(-42),
+            roll: 0.0
+          }
+        });
+      }
+    }
+
+    // morphComplete = déclenché exactement à la fin de l'animation
+    viewer.scene.morphComplete.addEventListener(function () {
+      setCameraForMode(viewer.scene.mode);
+    });
+
+    // Masquer le loading
+    var loadingEl = document.getElementById('globe-loading');
+    viewer.scene.globe.tileLoadProgressEvent.addEventListener(function (r) {
+      if (r === 0) loadingEl.classList.add('hidden');
+    });
+    setTimeout(function () { loadingEl.classList.add('hidden'); }, 8000);
+
+    // ════════════════════════════════════════════════════════════════
+    //  LEAFLET — CARTE 2D PLATE
+    // ════════════════════════════════════════════════════════════════
+    function initLeaflet() {
+      if (leafletMap) return;
+
+      leafletMap = L.map('map2d', {
+        center: [62, 95],
+        zoom: 3,
+        zoomControl: false,
+        attributionControl: true,
+        minZoom: 2,
+        maxZoom: 19,
+        worldCopyJump: true
+      });
+
+      // Tuiles satellite (ArcGIS — même source que Cesium)
+      lSat = L.tileLayer(SAT_URL, {
+        maxZoom: 19,
+        attribution: '© Esri, Maxar'
+      });
+
+      // Tuiles OSM
+      lOSM = L.tileLayer(OSM_URL, {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      });
+
+      // Ajouter la couche active
+      if (currentLayer === 'sat') lSat.addTo(leafletMap);
+      else                        lOSM.addTo(leafletMap);
+    }
+
+    function show2D() {
+      document.getElementById('globe-hero').style.display = 'none';
+      document.getElementById('map2d').style.display = 'block';
+      initLeaflet();
+      setTimeout(function () { leafletMap.invalidateSize(); }, 50);
+      // Contrôles : pivoter/incliner ne s'appliquent plus en 2D
+      document.getElementById('globe-controls').style.display = 'none';
+    }
+
+    function show3D() {
+      document.getElementById('map2d').style.display = 'none';
+      document.getElementById('globe-hero').style.display = 'block';
+      document.getElementById('globe-controls').style.display = '';
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  BOUTONS DE VUE
+    // ════════════════════════════════════════════════════════════════
+    function setActive(id) {
+      document.querySelectorAll('.view-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.getElementById(id).classList.add('active');
+    }
+
+    document.getElementById('btn-3d').addEventListener('click', function () {
+      if (activeView === '2d') {
+        show3D();
+        if (viewer.scene.mode !== Cesium.SceneMode.SCENE3D) {
+          viewer.scene.morphTo3D(0);
+        }
+      } else if (activeView === 'col') {
+        viewer.scene.morphTo3D(1.5);
+      }
+      activeView = '3d';
+      setActive('btn-3d');
+    });
+
+    document.getElementById('btn-2d').addEventListener('click', function () {
+      if (activeView !== '2d') {
+        show2D();
+        activeView = '2d';
+      }
+      setActive('btn-2d');
+    });
+
+    document.getElementById('btn-col').addEventListener('click', function () {
+      if (activeView === '2d') { show3D(); }
+      // CesiumJS 1.110 : morphToColumbusView() est la méthode correcte
+      viewer.scene.morphToColumbusView(1.5);
+      activeView = 'col';
+      setActive('btn-col');
+      // Double-filet : setTimeout après la durée de la transition
+      setTimeout(function () {
+        if (viewer.scene.mode === Cesium.SceneMode.COLUMBUS_VIEW) {
+          setCameraForMode(Cesium.SceneMode.COLUMBUS_VIEW);
+        }
+      }, 2000);
+    });
+
+    // ════════════════════════════════════════════════════════════════
+    //  BOUTON COUCHE — synchronisé Cesium + Leaflet
+    // ════════════════════════════════════════════════════════════════
+    document.getElementById('btn-layer').addEventListener('click', function () {
+      if (currentLayer === 'sat') {
+        // → OSM
+        viewer.imageryLayers.removeAll();
+        viewer.imageryLayers.addImageryProvider(makeCesiumOSM());
+        if (leafletMap) { lSat.remove(); lOSM.addTo(leafletMap); }
+        this.textContent = 'Satellite';
+        currentLayer = 'osm';
+      } else {
+        // → Satellite
+        viewer.imageryLayers.removeAll();
+        viewer.imageryLayers.addImageryProvider(makeCesiumSat());
+        if (leafletMap) { lOSM.remove(); lSat.addTo(leafletMap); }
+        this.textContent = 'Carte OSM';
+        currentLayer = 'sat';
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>
