@@ -247,7 +247,7 @@
     .capital-label span {
       position: absolute;
       white-space: nowrap;
-      transform: translate(-50%, -50%);
+      transform: translate(4px, -50%);
       color: rgba(255,255,255,0.88);
       font-size: 10px;
       font-family: 'Inter', Arial, sans-serif;
@@ -256,13 +256,22 @@
       pointer-events: none;
       letter-spacing: 0.1px;
     }
+    .capital-label .cap-dot-2d {
+      position: absolute;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.78);
+      box-shadow: 0 0 0 1.5px rgba(0,0,0,0.65);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
 
     /* ── Labels noms de pays ─────────────────────────────────────── */
     .country-label { position: relative; }
     .country-label span {
       position: absolute;
       white-space: nowrap;
-      transform: translate(-50%, 9px);
+      transform: translate(4px, 8px);
       color: rgba(255,255,255,0.78);
       font-size: 13px;
       font-family: 'Inter', Arial, sans-serif;
@@ -271,6 +280,28 @@
       pointer-events: none;
       letter-spacing: 0.2px;
     }
+
+    /* ── Icône avion (Leaflet) ───────────────────────────────────── */
+    .aircraft-icon {
+      background: none !important;
+      border: none !important;
+    }
+
+    /* ── Tooltip Leaflet — style sombre ──────────────────────────── */
+    .leaflet-tooltip {
+      background: rgba(9,12,16,0.90) !important;
+      border: 1px solid rgba(100,130,170,0.28) !important;
+      border-radius: 6px !important;
+      color: rgba(200,220,255,0.92) !important;
+      font-family: 'Inter', sans-serif !important;
+      font-size: 11px !important;
+      line-height: 1.55 !important;
+      padding: 5px 9px !important;
+      white-space: nowrap !important;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.55) !important;
+      pointer-events: none !important;
+    }
+    .leaflet-tooltip::before { display: none !important; }
 
     /* ── Override Cesium chrome ──────────────────────────────────── */
     .cesium-widget canvas { border-radius: 0; }
@@ -349,6 +380,13 @@
       <span class="filter-row-label" style="padding-left:14px;font-weight:600;font-size:13px;">Pays</span>
       <input type="checkbox" id="filter-countries" checked>
     </label>
+    <label class="filter-row" for="filter-aircraft">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="rgba(80,200,255,0.85)" style="flex-shrink:0">
+        <path d="M12,1 L9.5,9.5 L1,8 L1,11 L9.5,13 L8,21.5 L10.5,20.5 L12,16 L13.5,20.5 L16,21.5 L14.5,13 L23,11 L23,8 L14.5,9.5 Z"/>
+      </svg>
+      <span class="filter-row-label">Aéronefs</span>
+      <input type="checkbox" id="filter-aircraft" checked>
+    </label>
   </div>
 
   <!-- Popup suppression punaise -->
@@ -394,6 +432,13 @@
     var countryEntities3D  = [];    // entités Cesium
     var countryLayerGroup  = null;  // LayerGroup Leaflet
     var countriesVisible   = true;
+
+    // Aéronefs ADS-B
+    var aircraftData        = [];
+    var aircraftBillboards  = null;   // Cesium BillboardCollection
+    var aircraftMarkers2D   = null;   // Leaflet LayerGroup
+    var aircraftVisible     = true;
+    var aircraftFetchTimer  = null;
 
     // Punaise
     var pinnedCoords  = null;    // null | {lat, lng}
@@ -720,7 +765,7 @@
 
     function addCapitalLabels3D() {
       CAPITALS.forEach(function (cap) {
-        var entity = viewer.entities.add({
+        var capEntity = viewer.entities.add({
           position: Cesium.Cartesian3.fromDegrees(cap[2], cap[1], 10000),
           label: {
             text: cap[0],
@@ -742,7 +787,24 @@
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 18e6)
           }
         });
-        capitalEntities3D.push(entity);
+        capitalEntities3D.push(capEntity);
+
+        var countryEntity = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(cap[2], cap[1], 10000),
+          label: {
+            text: cap[3],
+            font: '600 12px Inter, Arial, sans-serif',
+            fillColor: Cesium.Color.WHITE.withAlpha(0.78),
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(7, 14),
+            horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+            verticalOrigin: Cesium.VerticalOrigin.TOP,
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 18e6)
+          }
+        });
+        countryEntities3D.push(countryEntity);
       });
     }
     addCapitalLabels3D();
@@ -808,7 +870,7 @@
         L.marker([cap[1], cap[2]], {
           icon: L.divIcon({
             className: 'capital-label',
-            html: '<span>' + cap[0] + '</span>',
+            html: '<div class="cap-dot-2d"></div><span>' + cap[0] + '</span>',
             iconSize: [0, 0],
             iconAnchor: [0, 0]
           }),
@@ -816,7 +878,157 @@
         }).addTo(capitalLayerGroup);
       });
       if (capitalsVisible) capitalLayerGroup.addTo(leafletMap);
+
+      // Labels pays — LayerGroup pour pouvoir les masquer
+      countryLayerGroup = L.layerGroup();
+      CAPITALS.forEach(function (cap) {
+        L.marker([cap[1], cap[2]], {
+          icon: L.divIcon({
+            className: 'country-label',
+            html: '<span>' + cap[3] + '</span>',
+            iconSize: [0, 0],
+            iconAnchor: [0, 0]
+          }),
+          interactive: false
+        }).addTo(countryLayerGroup);
+      });
+      if (countriesVisible) countryLayerGroup.addTo(leafletMap);
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  AÉRONEFS — ADS-B en temps réel (adsb.lol)
+    // ════════════════════════════════════════════════════════════════
+
+    // ── Icône avion (canvas Cesium) — avion vu du dessus pointant vers le haut
+    var AIRCRAFT_CANVAS = (function () {
+      var c = document.createElement('canvas');
+      c.width = 24; c.height = 24;
+      var ctx = c.getContext('2d');
+      ctx.fillStyle   = 'rgba(80,200,255,0.95)';
+      ctx.strokeStyle = 'rgba(0,30,60,0.85)';
+      ctx.lineWidth   = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(12, 1);
+      ctx.lineTo(9.5,  9.5);  ctx.lineTo(1,  8);
+      ctx.lineTo(1,   11);    ctx.lineTo(9.5, 13);
+      ctx.lineTo(8,   21.5);  ctx.lineTo(10.5, 20.5);
+      ctx.lineTo(12,  16);    ctx.lineTo(13.5, 20.5);
+      ctx.lineTo(16,  21.5);  ctx.lineTo(14.5, 13);
+      ctx.lineTo(23,  11);    ctx.lineTo(23,   8);
+      ctx.lineTo(14.5, 9.5);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      return c;
+    }());
+
+    // ── Icône avion (Leaflet divIcon) — SVG rotatif
+    function makeAircraftIcon(track) {
+      var deg = track || 0;
+      return L.divIcon({
+        className: 'aircraft-icon',
+        html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"' +
+              ' width="18" height="18"' +
+              ' style="transform:rotate(' + deg + 'deg);display:block;">' +
+              '<path d="M12,1 L9.5,9.5 L1,8 L1,11 L9.5,13 L8,21.5' +
+              ' L10.5,20.5 L12,16 L13.5,20.5 L16,21.5 L14.5,13' +
+              ' L23,11 L23,8 L14.5,9.5 Z"' +
+              ' fill="rgba(80,200,255,0.9)" stroke="rgba(0,30,60,0.8)" stroke-width="0.8"/>' +
+              '</svg>',
+        iconSize:   [18, 18],
+        iconAnchor: [9,  9]
+      });
+    }
+
+    // ── Fetch données adsb.lol
+    function fetchAircraft() {
+      fetch('https://api.adsb.lol/v2/all')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data || !data.ac) return;
+          // Garder uniquement les aéronefs avec position valide
+          var withPos = data.ac.filter(function (a) {
+            return typeof a.lat === 'number' && typeof a.lon === 'number';
+          });
+          // Limiter à 3 000 pour la performance (couverture mondiale)
+          aircraftData = withPos.length > 3000 ? withPos.slice(0, 3000) : withPos;
+          updateAircraftDisplay();
+        })
+        .catch(function (err) { console.warn('[ADS-B]', err); });
+    }
+
+    // ── Rendu 3D/4D (Cesium BillboardCollection)
+    function updateAircraft3D() {
+      if (!aircraftBillboards) {
+        aircraftBillboards = viewer.scene.primitives.add(new Cesium.BillboardCollection());
+      }
+      aircraftBillboards.removeAll();
+      if (!aircraftVisible) return;
+
+      aircraftData.forEach(function (a) {
+        var altFt = (a.alt_baro === 'ground' || a.alt_baro == null) ? 0 : Number(a.alt_baro);
+        var altM  = Math.max(0, altFt * 0.3048);
+        var track = a.track || 0;
+        aircraftBillboards.add({
+          position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, altM),
+          image:    AIRCRAFT_CANVAS,
+          width:    18,
+          height:   18,
+          // rotation Cesium : sens anti-horaire depuis l'axe x (est) → convertir track (horaire depuis nord)
+          rotation:  Cesium.Math.toRadians(-track),
+          alignedAxis: Cesium.Cartesian3.ZERO,
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 6e6),
+          id: {
+            isAircraft: true,
+            flight: (a.flight || a.hex || '?').trim(),
+            type:   a.t  || '',
+            altFt:  altFt,
+            gs:     Math.round(a.gs || 0)
+          }
+        });
+      });
+    }
+
+    // ── Rendu 2D (Leaflet LayerGroup)
+    function updateAircraft2D() {
+      if (!leafletMap) return;
+      if (aircraftMarkers2D) leafletMap.removeLayer(aircraftMarkers2D);
+      aircraftMarkers2D = L.layerGroup();
+      if (!aircraftVisible) return;
+
+      var subset = aircraftData.length > 2000 ? aircraftData.slice(0, 2000) : aircraftData;
+      subset.forEach(function (a) {
+        var altFt    = (a.alt_baro === 'ground' || a.alt_baro == null) ? 0 : Number(a.alt_baro);
+        var callsign = (a.flight || a.hex || '?').trim();
+        var tip = '<b style="font-size:12px">' + callsign + '</b>' +
+          (a.t ? '<br><span style="color:rgba(140,180,220,0.7)">' + a.t + '</span>' : '') +
+          '<br>Alt : ' + (a.alt_baro === 'ground' ? 'Sol' : Math.round(altFt).toLocaleString('fr') + ' ft') +
+          '&nbsp;&nbsp;Vit : ' + Math.round(a.gs || 0) + ' kt';
+        L.marker([a.lat, a.lon], {
+          icon: makeAircraftIcon(a.track || 0),
+          interactive: true,
+          zIndexOffset: 100
+        })
+        .bindTooltip(tip, { direction: 'top', offset: [0, -11], opacity: 1 })
+        .addTo(aircraftMarkers2D);
+      });
+      aircraftMarkers2D.addTo(leafletMap);
+    }
+
+    // ── Mise à jour selon la vue active
+    function updateAircraftDisplay() {
+      if (activeView === '2d') {
+        // Vider les billboards Cesium
+        if (aircraftBillboards) aircraftBillboards.removeAll();
+        updateAircraft2D();
+      } else {
+        // Vider les marqueurs Leaflet
+        if (aircraftMarkers2D && leafletMap) leafletMap.removeLayer(aircraftMarkers2D);
+        updateAircraft3D();
+      }
+    }
+
+    // ── Clic sur un aéronef en 3D (réutilise le handler Cesium existant)
+    // (géré dans la section CESIUM ci-dessus — voir extension du listener 'click')
 
     // ════════════════════════════════════════════════════════════════
     //  VUE 4D — OSM Buildings (Cesium ion)
@@ -854,6 +1066,7 @@
       document.getElementById('globe-controls').style.display = '';
       resetPin();
       loadOsmBuildings();
+      updateAircraftDisplay();
     }
 
     function show2D() {
@@ -864,7 +1077,10 @@
       viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
       resetPin();
       initLeaflet();
-      setTimeout(function () { leafletMap.invalidateSize(); }, 50);
+      setTimeout(function () {
+        leafletMap.invalidateSize();
+        updateAircraftDisplay();
+      }, 50);
     }
 
     function show3D() {
@@ -874,6 +1090,7 @@
       if (osmBuildings) osmBuildings.show = false;
       viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
       resetPin();
+      updateAircraftDisplay();
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -900,6 +1117,29 @@
         else leafletMap.removeLayer(capitalLayerGroup);
       }
     });
+
+    document.getElementById('filter-countries').addEventListener('change', function () {
+      countriesVisible = this.checked;
+      countryEntities3D.forEach(function (e) { e.show = countriesVisible; });
+      if (countryLayerGroup && leafletMap) {
+        if (countriesVisible) countryLayerGroup.addTo(leafletMap);
+        else leafletMap.removeLayer(countryLayerGroup);
+      }
+    });
+
+    document.getElementById('filter-aircraft').addEventListener('change', function () {
+      aircraftVisible = this.checked;
+      if (!aircraftVisible) {
+        if (aircraftBillboards) aircraftBillboards.removeAll();
+        if (aircraftMarkers2D && leafletMap) leafletMap.removeLayer(aircraftMarkers2D);
+      } else {
+        updateAircraftDisplay();
+      }
+    });
+
+    // ── Démarrage du suivi ADS-B (fetch immédiat + toutes les 10 s)
+    fetchAircraft();
+    aircraftFetchTimer = setInterval(fetchAircraft, 10000);
 
     document.getElementById('btn-4d').addEventListener('click', function () {
       if (activeView !== '4d') { show4D(); activeView = '4d'; }
