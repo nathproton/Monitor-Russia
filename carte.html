@@ -896,7 +896,7 @@
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  AÉRONEFS — ADS-B en temps réel (adsb.lol)
+    //  AÉRONEFS — ADS-B en temps réel (OpenSky Network)
     // ════════════════════════════════════════════════════════════════
 
     // ── Icône avion (canvas Cesium) — avion vu du dessus pointant vers le haut
@@ -939,21 +939,37 @@
       });
     }
 
-    // ── Fetch données adsb.lol
+    // ── Fetch données OpenSky Network (gratuit, CORS, mondial)
+    // Format état : [icao24, callsign, pays, t_pos, t_vel, lon, lat, alt_baro_m,
+    //                on_ground, vitesse_ms, cap, vrate, sensors, alt_geo_m, squawk, spi, src]
     function fetchAircraft() {
-      fetch('https://api.adsb.lol/v2/all')
-        .then(function (r) { return r.json(); })
+      fetch('https://opensky-network.org/api/states/all')
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
         .then(function (data) {
-          if (!data || !data.ac) return;
-          // Garder uniquement les aéronefs avec position valide
-          var withPos = data.ac.filter(function (a) {
-            return typeof a.lat === 'number' && typeof a.lon === 'number';
-          });
-          // Limiter à 3 000 pour la performance (couverture mondiale)
-          aircraftData = withPos.length > 3000 ? withPos.slice(0, 3000) : withPos;
+          if (!data || !data.states) return;
+          // Normaliser vers le format interne {hex, flight, lat, lon, alt_baro, gs, track, t}
+          aircraftData = data.states
+            .filter(function (s) { return s[5] != null && s[6] != null; })
+            .map(function (s) {
+              var altM  = s[7] != null ? s[7] : (s[13] != null ? s[13] : 0);
+              return {
+                hex:      s[0] || '',
+                flight:   (s[1] || s[0] || '').trim(),
+                country:  s[2] || '',
+                lat:      s[6],
+                lon:      s[5],
+                alt_baro: s[8] ? 'ground' : Math.round(altM / 0.3048), // m → ft
+                gs:       Math.round((s[9] || 0) * 1.944),              // m/s → kt
+                track:    s[10] || 0,
+                t:        ''   // OpenSky ne fournit pas le type en accès anonyme
+              };
+            });
           updateAircraftDisplay();
         })
-        .catch(function (err) { console.warn('[ADS-B]', err); });
+        .catch(function (err) { console.warn('[ADS-B OpenSky]', err); });
     }
 
     // ── Rendu 3D/4D (Cesium BillboardCollection)
@@ -1000,7 +1016,8 @@
         var altFt    = (a.alt_baro === 'ground' || a.alt_baro == null) ? 0 : Number(a.alt_baro);
         var callsign = (a.flight || a.hex || '?').trim();
         var tip = '<b style="font-size:12px">' + callsign + '</b>' +
-          (a.t ? '<br><span style="color:rgba(140,180,220,0.7)">' + a.t + '</span>' : '') +
+          (a.t  ? '<br><span style="color:rgba(140,180,220,0.7)">' + a.t + '</span>' : '') +
+          (a.country ? '<br><span style="color:rgba(140,180,220,0.55);font-size:10px">' + a.country + '</span>' : '') +
           '<br>Alt : ' + (a.alt_baro === 'ground' ? 'Sol' : Math.round(altFt).toLocaleString('fr') + ' ft') +
           '&nbsp;&nbsp;Vit : ' + Math.round(a.gs || 0) + ' kt';
         L.marker([a.lat, a.lon], {
@@ -1137,9 +1154,10 @@
       }
     });
 
-    // ── Démarrage du suivi ADS-B (fetch immédiat + toutes les 10 s)
+    // ── Démarrage du suivi ADS-B (fetch immédiat + toutes les 15 s)
+    // OpenSky Network : accès anonyme limité à 1 req/10 s, on prend 15 s par sécurité
     fetchAircraft();
-    aircraftFetchTimer = setInterval(fetchAircraft, 10000);
+    aircraftFetchTimer = setInterval(fetchAircraft, 15000);
 
     document.getElementById('btn-4d').addEventListener('click', function () {
       if (activeView !== '4d') { show4D(); activeView = '4d'; }
