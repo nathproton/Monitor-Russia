@@ -163,11 +163,121 @@
     #coords-copy.active:hover { color: rgba(180,210,255,0.95); }
     #coords-copy.copied { color: rgba(100,210,140,0.9); }
 
+    /* ── Popup suppression punaise ───────────────────────────────── */
+    #pin-popup {
+      position: fixed; z-index: 60;
+      transform: translate(-50%, calc(-100% - 14px));
+      pointer-events: auto;
+    }
+    #btn-delete-pin {
+      background: rgba(20,24,30,0.88); backdrop-filter: blur(8px);
+      border: 1px solid rgba(224,53,53,0.55);
+      border-radius: 7px; padding: 6px 13px;
+      color: rgba(224,100,100,0.95); font-size: 11.5px;
+      font-family: 'Inter', sans-serif; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    #btn-delete-pin:hover {
+      background: rgba(224,53,53,0.85);
+      border-color: rgba(224,53,53,0.9);
+      color: #fff;
+    }
+
+    /* ── Panneau filtres — gauche ────────────────────────────────── */
+    #filter-toggle {
+      position: fixed; left: 0; top: 50%; z-index: 52;
+      transform: translateY(-50%);
+      background: rgba(9,12,16,0.72);
+      border: 1px solid rgba(100,130,170,0.22); border-left: none;
+      border-radius: 0 7px 7px 0; width: 22px; height: 46px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: rgba(140,165,205,0.65);
+      transition: color .15s, background .15s; padding: 0;
+    }
+    #filter-toggle:hover { color: rgba(180,210,255,0.9); background: rgba(20,26,36,0.88); }
+    #filter-toggle svg { transition: transform .25s ease; flex-shrink: 0; }
+    #filter-toggle.open svg { transform: rotate(180deg); }
+    #filter-panel {
+      position: fixed; left: 22px; top: 50%; z-index: 51;
+      transform: translateY(-50%) translateX(calc(-100% - 22px));
+      transition: transform .25s cubic-bezier(.4,0,.2,1);
+      background: rgba(9,12,16,0.78); backdrop-filter: blur(14px);
+      border: 1px solid rgba(100,130,170,0.14); border-left: none;
+      border-radius: 0 10px 10px 0; padding: 16px 16px; min-width: 185px;
+    }
+    #filter-panel.open { transform: translateY(-50%) translateX(0); }
+    .filter-title {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.9px;
+      text-transform: uppercase; color: rgba(140,165,205,0.4);
+      font-family: 'Inter', sans-serif; margin-bottom: 12px;
+    }
+    .filter-row {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none; padding: 3px 0;
+    }
+    .filter-cap-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(255,255,255,0.78);
+      box-shadow: 0 0 0 1.5px rgba(0,0,0,0.65);
+    }
+    .filter-row-label {
+      flex: 1; font-size: 12px; font-family: 'Inter', sans-serif;
+      color: rgba(180,200,235,0.82); font-weight: 400;
+    }
+    .filter-row input[type="checkbox"] {
+      appearance: none; -webkit-appearance: none;
+      width: 14px; height: 14px; flex-shrink: 0;
+      border: 1px solid rgba(100,130,170,0.4); border-radius: 3px;
+      background: rgba(255,255,255,0.05); cursor: pointer;
+      position: relative; transition: background .15s, border-color .15s;
+    }
+    .filter-row input[type="checkbox"]:checked {
+      background: rgba(100,160,220,0.72); border-color: rgba(120,175,235,0.9);
+    }
+    .filter-row input[type="checkbox"]:checked::after {
+      content: ''; position: absolute;
+      left: 3px; top: 0px; width: 5px; height: 8px;
+      border: 1.5px solid #fff; border-top: none; border-left: none;
+      transform: rotate(45deg);
+    }
+
+    /* ── Labels capitales ────────────────────────────────────────── */
+    .capital-label { position: relative; }
+    .capital-label span {
+      position: absolute;
+      white-space: nowrap;
+      transform: translate(-50%, -50%);
+      color: rgba(255,255,255,0.88);
+      font-size: 10px;
+      font-family: 'Inter', Arial, sans-serif;
+      font-weight: 500;
+      text-shadow: 0 0 3px rgba(0,0,0,1), 0 0 6px rgba(0,0,0,0.8);
+      pointer-events: none;
+      letter-spacing: 0.1px;
+    }
+
+    /* ── Labels noms de pays ─────────────────────────────────────── */
+    .country-label { position: relative; }
+    .country-label span {
+      position: absolute;
+      white-space: nowrap;
+      transform: translate(-50%, 9px);
+      color: rgba(255,255,255,0.78);
+      font-size: 13px;
+      font-family: 'Inter', Arial, sans-serif;
+      font-weight: 700;
+      text-shadow: 0 0 4px rgba(0,0,0,1), 0 0 8px rgba(0,0,0,0.9);
+      pointer-events: none;
+      letter-spacing: 0.2px;
+    }
+
     /* ── Override Cesium chrome ──────────────────────────────────── */
     .cesium-widget canvas { border-radius: 0; }
     .cesium-viewer-toolbar { display: none !important; }
     .cesium-credit-container, .cesium-credit-logoContainer {
       opacity: 0.18 !important; filter: grayscale(1) !important; z-index: 50 !important;
+      pointer-events: none !important;
     }
   </style>
 </head>
@@ -205,7 +315,8 @@
 
   <!-- Boutons de vue -->
   <div id="view-buttons">
-    <button class="view-btn active" id="btn-3d">Globe 3D</button>
+    <button class="view-btn"        id="btn-4d">Vue 4D</button>
+    <button class="view-btn active" id="btn-3d">Vue 3D</button>
     <button class="view-btn"        id="btn-2d">Vue 2D</button>
   </div>
 
@@ -218,6 +329,31 @@
     <span>Molette</span> — Zoom &nbsp;·&nbsp;
     <span>Maj + clic</span> — Incliner &nbsp;·&nbsp;
     <span>Clic droit</span> — Poser une punaise
+  </div>
+
+  <!-- Bouton toggle + panneau filtres -->
+  <button id="filter-toggle" title="Filtres">
+    <svg width="8" height="13" viewBox="0 0 8 13" fill="none">
+      <path d="M1.5 1.5 L6.5 6.5 L1.5 11.5" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+  <div id="filter-panel">
+    <div class="filter-title">Filtres</div>
+    <label class="filter-row" for="filter-capitals">
+      <span class="filter-cap-dot"></span>
+      <span class="filter-row-label">Capitales</span>
+      <input type="checkbox" id="filter-capitals" checked>
+    </label>
+    <label class="filter-row" for="filter-countries">
+      <span class="filter-row-label" style="padding-left:14px;font-weight:600;font-size:13px;">Pays</span>
+      <input type="checkbox" id="filter-countries" checked>
+    </label>
+  </div>
+
+  <!-- Popup suppression punaise -->
+  <div id="pin-popup" style="display:none;">
+    <button id="btn-delete-pin">Supprimer la punaise</button>
   </div>
 
   <!-- Coordonnées + bouton copie — bas droite -->
@@ -240,14 +376,33 @@
     //  ÉTAT GLOBAL
     // ════════════════════════════════════════════════════════════════
     var currentLayer  = 'sat';   // 'sat' | 'osm'
-    var activeView    = '3d';    // '3d' | '2d'
+    var activeView    = '3d';    // '4d' | '3d' | '2d'
     var leafletMap    = null;
     var lSat = null, lOSM = null;
 
+    // Bâtiments 3D (Vue 4D)
+    var osmBuildings       = null;  // Cesium3DTileset
+    var osmBuildingsLoaded = false;
+    var worldTerrain       = null;  // terrain réel pour Vue 4D
+
+    // Capitales — références pour le toggle
+    var capitalEntities3D  = [];    // entités Cesium
+    var capitalLayerGroup  = null;  // LayerGroup Leaflet
+    var capitalsVisible    = true;
+
+    // Pays — références pour le toggle
+    var countryEntities3D  = [];    // entités Cesium
+    var countryLayerGroup  = null;  // LayerGroup Leaflet
+    var countriesVisible   = true;
+
     // Punaise
     var pinnedCoords  = null;    // null | {lat, lng}
+    var pinSelected   = false;
     var cesiumPin     = null;    // entity Cesium
     var leafletPin    = null;    // layer Leaflet
+
+    // Refs DOM popup
+    var pinPopupEl    = document.getElementById('pin-popup');
 
     // Refs DOM coords
     var coordsTextEl  = document.getElementById('coords-text');
@@ -274,15 +429,51 @@
       pinnedCoords = { lat: lat, lng: lng };
       showCoords(lat, lng);
       coordsCopyEl.classList.add('active');
+      deselectPin(); // nouvelle punaise → désélectionner toute sélection précédente
+    }
+
+    function selectPin(screenX, screenY) {
+      pinSelected = true;
+      pinPopupEl.style.left = screenX + 'px';
+      pinPopupEl.style.top  = screenY + 'px';
+      pinPopupEl.style.display = 'block';
+      // Mise en évidence visuelle
+      if (cesiumPin) {
+        cesiumPin.point.outlineColor = Cesium.Color.fromCssColorString('#ffdd44');
+        cesiumPin.point.outlineWidth = 3.5;
+        cesiumPin.point.pixelSize    = 14;
+      }
+      if (leafletPin) {
+        leafletPin.setStyle({ color: '#ffdd44', weight: 3.5, radius: 9 });
+      }
+    }
+
+    function deselectPin() {
+      pinSelected = false;
+      pinPopupEl.style.display = 'none';
+      // Restauration style normal
+      if (cesiumPin) {
+        cesiumPin.point.outlineColor = Cesium.Color.WHITE;
+        cesiumPin.point.outlineWidth = 2.5;
+        cesiumPin.point.pixelSize    = 12;
+      }
+      if (leafletPin) {
+        leafletPin.setStyle({ color: '#ffffff', weight: 2.5, radius: 7 });
+      }
     }
 
     function resetPin() {
+      deselectPin();
       pinnedCoords = null;
       coordsCopyEl.classList.remove('active');
       clearCoords();
       if (cesiumPin)  { viewer.entities.remove(cesiumPin); cesiumPin = null; }
       if (leafletPin && leafletMap) { leafletMap.removeLayer(leafletPin); leafletPin = null; }
     }
+
+    document.getElementById('btn-delete-pin').addEventListener('click', function () {
+      resetPin();
+    });
 
     coordsCopyEl.addEventListener('click', function () {
       if (!pinnedCoords) return;
@@ -314,11 +505,12 @@
     // ════════════════════════════════════════════════════════════════
     //  FOURNISSEURS DE TUILES
     // ════════════════════════════════════════════════════════════════
-    var SAT_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+    var SAT_URL = 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
+    var SAT_SUBDOMAINS = ['0','1','2','3'];
     var OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
     function makeCesiumSat() {
-      return new Cesium.UrlTemplateImageryProvider({ url: SAT_URL, maximumLevel: 19, credit: '© Esri' });
+      return new Cesium.UrlTemplateImageryProvider({ url: SAT_URL, subdomains: SAT_SUBDOMAINS, maximumLevel: 22, credit: '© Google' });
     }
     function makeCesiumOSM() {
       return new Cesium.UrlTemplateImageryProvider({ url: OSM_URL, maximumLevel: 19, credit: '© OpenStreetMap' });
@@ -327,7 +519,7 @@
     // ════════════════════════════════════════════════════════════════
     //  CESIUM — GLOBE 3D
     // ════════════════════════════════════════════════════════════════
-    Cesium.Ion.defaultAccessToken = '';
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZDY0NTAxOC0xN2YxLTQ4YzUtYWUwOS02MDgwNjdhNzY2OWMiLCJpZCI6NDAzMDA0LCJpYXQiOjE3NzMzOTc5NzN9.mv3MjxdPw7mkIViY18Mx-fkCKPh8WhyRO3gKdlUHU2w';
 
     window._cesiumViewer = null;
     var viewer = new Cesium.Viewer('cesiumContainer', {
@@ -350,8 +542,21 @@
     window._cesiumViewer = viewer;
     viewer.imageryLayers.addImageryProvider(makeCesiumSat());
 
+    // Certains environnements (GPU software) ne compilent pas tous les shaders CesiumJS.
+    // On intercepte l'erreur pour ne pas arrêter définitivement la boucle de rendu.
+    viewer.scene.renderError.addEventListener(function () {
+      viewer.useDefaultRenderLoop = true;
+    });
+
     // Limite de dézoom : la Terre doit toujours rester visible (~40 000 km max)
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 4e7;
+
+    // Retirer le right-drag du zoom (libère le clic droit pour la punaise).
+    // Zoom reste disponible via molette + pinch tactile.
+    viewer.scene.screenSpaceCameraController.zoomEventTypes = [
+      Cesium.CameraEventType.WHEEL,
+      Cesium.CameraEventType.PINCH
+    ];
 
     viewer.scene.backgroundColor      = Cesium.Color.fromCssColorString('#090c10');
     viewer.scene.skyBox.show           = true;
@@ -374,10 +579,8 @@
     setTimeout(function () { loadingEl.classList.add('hidden'); }, 8000);
 
     // ── Coordonnées Cesium — survol ──────────────────────────────
-    var rightDownPos = null;
-
     viewer.scene.canvas.addEventListener('mousemove', function (e) {
-      if (pinnedCoords) return;
+      if (pinnedCoords || activeView === '2d') return;
       var rect = viewer.scene.canvas.getBoundingClientRect();
       var pick = viewer.camera.pickEllipsoid(
         new Cesium.Cartesian2(e.clientX - rect.left, e.clientY - rect.top),
@@ -393,25 +596,30 @@
 
     viewer.scene.canvas.addEventListener('mouseleave', function () { clearCoords(); });
 
-    // ── Punaise Cesium — clic droit ──────────────────────────────
-    viewer.scene.canvas.addEventListener('mousedown', function (e) {
-      if (e.button === 2) rightDownPos = { x: e.clientX, y: e.clientY };
+    // ── Sélection punaise Cesium — clic gauche ───────────────────
+    viewer.scene.canvas.addEventListener('click', function (e) {
+      if (!cesiumPin) return;
+      var rect   = viewer.scene.canvas.getBoundingClientRect();
+      var picked = viewer.scene.pick(new Cesium.Cartesian2(e.clientX - rect.left, e.clientY - rect.top));
+      if (picked && picked.id === cesiumPin) {
+        selectPin(e.clientX, e.clientY);
+      } else {
+        deselectPin();
+      }
     });
 
+    // ── Punaise Cesium — clic droit ──────────────────────────────
+    // Le right-drag zoom ayant été désactivé, le clic droit est libre.
+    // On utilise directement l'événement contextmenu (clic droit sans drag).
     viewer.scene.canvas.addEventListener('contextmenu', function (e) {
-      e.preventDefault();
-      if (!rightDownPos) return;
-      var dx = e.clientX - rightDownPos.x;
-      var dy = e.clientY - rightDownPos.y;
-      rightDownPos = null;
-      if (Math.sqrt(dx * dx + dy * dy) > 5) return; // c'était un drag (zoom)
+      e.preventDefault(); // supprime le menu natif du navigateur
 
       var rect = viewer.scene.canvas.getBoundingClientRect();
       var pick = viewer.camera.pickEllipsoid(
         new Cesium.Cartesian2(e.clientX - rect.left, e.clientY - rect.top),
         viewer.scene.globe.ellipsoid
       );
-      if (!pick) return;
+      if (!pick) return; // clic sur le ciel/espace
 
       var c   = Cesium.Cartographic.fromCartesian(pick);
       var lat = Cesium.Math.toDegrees(c.latitude);
@@ -421,16 +629,123 @@
       cesiumPin = viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(lng, lat),
         point: {
-          pixelSize: 10,
+          pixelSize: 12,
           color: Cesium.Color.fromCssColorString('#e03535'),
           outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 2,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          outlineWidth: 2.5,
           disableDepthTestDistance: Number.POSITIVE_INFINITY
         }
       });
       pinAt(lat, lng);
     });
+
+    // ════════════════════════════════════════════════════════════════
+    //  CAPITALES MONDIALES
+    // ════════════════════════════════════════════════════════════════
+    // [capitaleName, lat, lng, countryName]
+    var CAPITALS = [
+      // Europe
+      ['Londres',51.507,-0.128,'Royaume-Uni'],['Paris',48.853,2.350,'France'],['Berlin',52.517,13.389,'Allemagne'],
+      ['Madrid',40.417,-3.703,'Espagne'],['Rome',41.900,12.483,'Italie'],['Varsovie',52.233,21.017,'Pologne'],
+      ['Kiev',50.450,30.523,'Ukraine'],['Moscou',55.755,37.617,'Russie'],['Vienne',48.208,16.373,'Autriche'],
+      ['Prague',50.088,14.421,'Tchéquie'],['Budapest',47.498,19.039,'Hongrie'],['Bucarest',44.432,26.104,'Roumanie'],
+      ['Sofia',42.698,23.322,'Bulgarie'],['Athènes',37.974,23.728,'Grèce'],['Belgrade',44.817,20.460,'Serbie'],
+      ['Zagreb',45.815,15.981,'Croatie'],['Ljubljana',46.051,14.506,'Slovénie'],['Bratislava',48.148,17.107,'Slovaquie'],
+      ['Vilnius',54.690,25.279,'Lituanie'],['Riga',56.946,24.106,'Lettonie'],['Tallinn',59.437,24.754,'Estonie'],
+      ['Helsinki',60.169,24.935,'Finlande'],['Stockholm',59.333,18.067,'Suède'],['Oslo',59.913,10.752,'Norvège'],
+      ['Copenhague',55.676,12.568,'Danemark'],['Amsterdam',52.370,4.895,'Pays-Bas'],['Bruxelles',50.850,4.352,'Belgique'],
+      ['Luxembourg',49.611,6.132,'Luxembourg'],['Berne',46.948,7.448,'Suisse'],['Lisbonne',38.717,-9.133,'Portugal'],
+      ['Dublin',53.333,-6.249,'Irlande'],['Reykjavik',64.135,-21.895,'Islande'],['Nicosie',35.166,33.367,'Chypre'],
+      ['Tirana',41.328,19.819,'Albanie'],['Sarajevo',43.850,18.396,'Bosnie-Herzégovine'],['Podgorica',42.443,19.263,'Monténégro'],
+      ['Skopje',41.997,21.428,'Macédoine du Nord'],['Minsk',53.904,27.561,'Biélorussie'],['Chișinău',47.006,28.858,'Moldavie'],
+      ['Vallette',35.900,14.513,'Malte'],['Andorre',42.507,1.522,'Andorre'],['Vaduz',47.141,9.521,'Liechtenstein'],
+      ['Monaco',43.731,7.420,'Monaco'],['San Marino',43.936,12.441,'Saint-Marin'],['Vatican',41.903,12.453,'Vatican'],
+      // Asie
+      ['Pékin',39.906,116.391,'Chine'],['Tokyo',35.690,139.692,'Japon'],['Séoul',37.566,126.978,'Corée du Sud'],
+      ['New Delhi',28.614,77.202,'Inde'],['Islamabad',33.729,73.094,'Pakistan'],['Kaboul',34.528,69.172,'Afghanistan'],
+      ['Téhéran',35.695,51.423,'Iran'],['Bagdad',33.341,44.401,'Irak'],['Riyad',24.688,46.722,'Arabie saoudite'],
+      ['Abou Dabi',24.453,54.377,'Émirats arabes unis'],['Mascate',23.614,58.593,'Oman'],['Doha',25.286,51.533,'Qatar'],
+      ['Koweït',29.369,47.978,'Koweït'],['Manama',26.225,50.586,'Bahreïn'],['Amman',31.956,35.945,'Jordanie'],
+      ['Damas',33.510,36.291,'Syrie'],['Beyrouth',33.889,35.501,'Liban'],['Ankara',39.921,32.854,'Turquie'],
+      ['Bakou',40.409,49.867,'Azerbaïdjan'],['Erevan',40.181,44.514,'Arménie'],['Tbilissi',41.694,44.834,'Géorgie'],
+      ['Tachkent',41.299,69.240,'Ouzbékistan'],['Astana',51.180,71.446,'Kazakhstan'],['Bichkek',42.871,74.596,'Kirghizistan'],
+      ['Douchanbé',38.559,68.773,'Tadjikistan'],['Achgabat',37.953,58.383,'Turkménistan'],['Oulan-Bator',47.887,106.906,'Mongolie'],
+      ['Pyongyang',39.019,125.738,'Corée du Nord'],['Bangkok',13.753,100.502,'Thaïlande'],['Vientiane',17.967,102.600,'Laos'],
+      ['Phnom Penh',11.562,104.916,'Cambodge'],['Hanoï',21.028,105.804,'Viêt Nam'],['Naypyidaw',19.745,96.129,'Birmanie'],
+      ['Kuala Lumpur',3.140,101.687,'Malaisie'],['Bandar S.B.',4.940,114.948,'Brunei'],
+      ['Singapour',1.352,103.820,'Singapour'],['Jakarta',-6.211,106.845,'Indonésie'],['Dili',-8.559,125.579,'Timor oriental'],
+      ['Manille',14.599,120.984,'Philippines'],['Colombo',6.927,79.861,'Sri Lanka'],['Katmandou',27.717,85.319,'Népal'],
+      ['Thimphou',27.472,89.639,'Bhoutan'],['Dacca',23.810,90.412,'Bangladesh'],['Malé',4.175,73.509,'Maldives'],
+      ['Jérusalem',31.768,35.214,'Israël'],['Taipei',25.048,121.514,'Taïwan'],
+      // Afrique
+      ['Le Caire',30.044,31.236,'Égypte'],['Alger',36.737,3.086,'Algérie'],['Tunis',36.819,10.166,'Tunisie'],
+      ['Tripoli',32.902,13.180,'Libye'],['Rabat',33.992,-6.850,'Maroc'],['Addis-Abeba',9.025,38.747,'Éthiopie'],
+      ['Nairobi',-1.286,36.817,'Kenya'],['Kampala',0.347,32.583,'Ouganda'],['Kigali',-1.949,30.059,'Rwanda'],
+      ['Dodoma',-6.173,35.740,'Tanzanie'],['Maputo',-25.966,32.573,'Mozambique'],['Harare',-17.829,31.053,'Zimbabwe'],
+      ['Lusaka',-15.416,28.283,'Zambie'],['Lilongwe',-13.967,33.787,'Malawi'],['Antananarivo',-18.912,47.536,'Madagascar'],
+      ['Gaborone',-24.654,25.909,'Botswana'],['Windhoek',-22.557,17.084,'Namibie'],['Maseru',-29.318,27.483,'Lesotho'],
+      ['Mbabane',-26.316,31.133,'Eswatini'],['Pretoria',-25.745,28.188,'Afrique du Sud'],['Luanda',-8.837,13.234,'Angola'],
+      ['Kinshasa',-4.322,15.322,'RD Congo'],['Brazzaville',-4.269,15.271,'Congo'],['Libreville',0.391,9.454,'Gabon'],
+      ['Yaoundé',3.848,11.502,'Cameroun'],['Bangui',4.362,18.583,'Rép. centrafricaine'],["N'Djamena",12.107,15.044,'Tchad'],
+      ['Niamey',13.513,2.113,'Niger'],['Abuja',9.058,7.499,'Nigeria'],['Accra',5.548,-0.197,'Ghana'],
+      ['Ouagadougou',12.364,-1.534,'Burkina Faso'],['Bamako',12.650,-8.000,'Mali'],['Dakar',14.693,-17.447,'Sénégal'],
+      ['Banjul',13.454,-16.579,'Gambie'],['Bissau',11.863,-15.598,'Guinée-Bissau'],['Conakry',9.537,-13.677,'Guinée'],
+      ['Freetown',8.490,-13.234,'Sierra Leone'],['Monrovia',6.301,-10.797,'Liberia'],['Yamoussoukro',6.820,-5.274,'Côte d\'Ivoire'],
+      ['Lomé',6.137,1.212,'Togo'],['Porto-Novo',6.497,2.628,'Bénin'],['Malabo',3.750,8.782,'Guinée équatoriale'],
+      ['São Tomé',0.337,6.727,'Sao Tomé-et-Principe'],['Djibouti',11.589,43.145,'Djibouti'],['Mogadiscio',2.046,45.318,'Somalie'],
+      ['Asmara',15.322,38.931,'Érythrée'],['Khartoum',15.551,32.532,'Soudan'],['Djouba',4.859,31.572,'Soudan du Sud'],
+      ['Moroni',-11.702,43.255,'Comores'],['Victoria',-4.619,55.452,'Seychelles'],['Port-Louis',-20.162,57.499,'Maurice'],
+      ['Nouakchott',18.079,-15.965,'Mauritanie'],['Praia',14.933,-23.513,'Cap-Vert'],
+      // Amériques
+      ['Washington',38.895,-77.037,'États-Unis'],['Ottawa',45.424,-75.697,'Canada'],['Mexico',19.433,-99.133,'Mexique'],
+      ['La Havane',23.136,-82.359,'Cuba'],['Nassau',25.048,-77.353,'Bahamas'],['Kingston',17.998,-76.793,'Jamaïque'],
+      ['Port-au-Prince',18.543,-72.338,'Haïti'],['Saint-Domingue',18.479,-69.900,'Rép. dominicaine'],
+      ['San José',9.929,-84.090,'Costa Rica'],['Panama',8.994,-79.519,'Panama'],['Guatemala',14.641,-90.513,'Guatemala'],
+      ['Tegucigalpa',14.093,-87.207,'Honduras'],['San Salvador',13.693,-89.219,'Salvador'],['Managua',12.136,-86.292,'Nicaragua'],
+      ['Bridgetown',13.097,-59.619,'Barbade'],['Port-d\'Espagne',10.652,-61.519,'Trinidad-et-Tobago'],
+      ['Belmopan',17.251,-88.769,'Belize'],['Paramaribo',5.852,-55.204,'Suriname'],['Georgetown',6.802,-58.155,'Guyana'],
+      ['Caracas',10.480,-66.879,'Venezuela'],['Bogotá',4.711,-74.073,'Colombie'],['Quito',-0.220,-78.513,'Équateur'],
+      ['Lima',-12.043,-77.028,'Pérou'],['Brasília',-15.780,-47.929,'Brésil'],['Asunción',-25.286,-57.647,'Paraguay'],
+      ['Buenos Aires',-34.613,-58.378,'Argentine'],['Montevideo',-34.901,-56.165,'Uruguay'],['Santiago',-33.459,-70.648,'Chili'],
+      ['La Paz',-16.489,-68.119,'Bolivie'],['Roseau',15.301,-61.388,'Dominique'],['Castries',14.010,-60.987,'Sainte-Lucie'],
+      ['Kingstown',13.157,-61.225,'Saint-Vincent'],['Basseterre',17.296,-62.724,'Saint-Kitts'],['Saint John\'s',17.117,-61.847,'Antigua-et-Barbuda'],
+      ['Saint George\'s',12.055,-61.749,'Grenade'],
+      // Océanie
+      ['Canberra',-35.283,149.129,'Australie'],['Wellington',-41.286,174.776,'Nouvelle-Zélande'],['Suva',-18.141,178.441,'Fidji'],
+      ['Port Moresby',-9.443,147.180,'Papouasie-N.-G.'],['Honiara',-9.430,159.955,'Îles Salomon'],['Port-Vila',-17.733,168.322,'Vanuatu'],
+      ['Nuku\'alofa',-21.139,-175.217,'Tonga'],['Apia',-13.833,-171.833,'Samoa'],['Funafuti',-8.520,179.198,'Tuvalu'],
+      ['Tarawa',1.328,172.979,'Kiribati'],['Majuro',7.090,171.380,'Îles Marshall'],['Palikir',6.921,158.161,'Micronésie'],
+      ['Ngerulmud',7.500,134.624,'Palaos']
+    ];
+
+    function addCapitalLabels3D() {
+      CAPITALS.forEach(function (cap) {
+        var entity = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(cap[2], cap[1], 10000),
+          label: {
+            text: cap[0],
+            font: '500 10px Inter, Arial, sans-serif',
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(7, 0),
+            horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 18e6)
+          },
+          point: {
+            pixelSize: 3,
+            color: Cesium.Color.WHITE.withAlpha(0.75),
+            outlineColor: Cesium.Color.BLACK.withAlpha(0.6),
+            outlineWidth: 1,
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 18e6)
+          }
+        });
+        capitalEntities3D.push(entity);
+      });
+    }
+    addCapitalLabels3D();
 
     // ════════════════════════════════════════════════════════════════
     //  LEAFLET — CARTE 2D PLATE
@@ -450,7 +765,7 @@
         maxBoundsViscosity: 1.0
       });
 
-      lSat = L.tileLayer(SAT_URL, { maxZoom: 19, attribution: '© Esri, Maxar' });
+      lSat = L.tileLayer(SAT_URL, { subdomains: SAT_SUBDOMAINS, maxZoom: 22, attribution: '© Google' });
       lOSM = L.tileLayer(OSM_URL, { maxZoom: 19, attribution: '© OpenStreetMap contributors' });
 
       if (currentLayer === 'sat') lSat.addTo(leafletMap);
@@ -473,14 +788,80 @@
           fillOpacity: 1,
           weight: 2.5
         }).addTo(leafletMap);
+        // Sélection punaise Leaflet — clic gauche
+        leafletPin.on('click', function (ev) {
+          L.DomEvent.stopPropagation(ev);
+          var mapEl = document.getElementById('map2d');
+          var rect  = mapEl.getBoundingClientRect();
+          var pt    = leafletMap.latLngToContainerPoint(leafletPin.getLatLng());
+          selectPin(rect.left + pt.x, rect.top + pt.y);
+        });
         pinAt(e.latlng.lat, e.latlng.lng);
       });
+
+      // Clic sur la carte (hors punaise) → désélectionner
+      leafletMap.on('click', function () { deselectPin(); });
+
+      // Labels capitales — LayerGroup pour pouvoir les masquer
+      capitalLayerGroup = L.layerGroup();
+      CAPITALS.forEach(function (cap) {
+        L.marker([cap[1], cap[2]], {
+          icon: L.divIcon({
+            className: 'capital-label',
+            html: '<span>' + cap[0] + '</span>',
+            iconSize: [0, 0],
+            iconAnchor: [0, 0]
+          }),
+          interactive: false
+        }).addTo(capitalLayerGroup);
+      });
+      if (capitalsVisible) capitalLayerGroup.addTo(leafletMap);
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  VUE 4D — OSM Buildings (Cesium ion)
+    // ════════════════════════════════════════════════════════════════
+    function loadOsmBuildings() {
+      // Terrain réel — les bâtiments OSM ont leurs altitudes réelles,
+      // il faut que le globe ait le même terrain pour qu'ils soient posés au sol.
+      if (worldTerrain) {
+        viewer.terrainProvider = worldTerrain;
+      } else {
+        Cesium.createWorldTerrainAsync().then(function (tp) {
+          worldTerrain = tp;
+          if (activeView === '4d') viewer.terrainProvider = worldTerrain;
+        }).catch(function (err) {
+          console.warn('World terrain:', err);
+        });
+      }
+
+      if (osmBuildingsLoaded) {
+        osmBuildings.show = true;
+        return;
+      }
+      Cesium.createOsmBuildingsAsync().then(function (tileset) {
+        osmBuildings = viewer.scene.primitives.add(tileset);
+        osmBuildingsLoaded = true;
+        osmBuildings.show = true;
+      }).catch(function (err) {
+        console.warn('OSM Buildings:', err);
+      });
+    }
+
+    function show4D() {
+      document.getElementById('map2d').style.display = 'none';
+      document.getElementById('globe-hero').style.display = 'block';
+      document.getElementById('globe-controls').style.display = '';
+      resetPin();
+      loadOsmBuildings();
     }
 
     function show2D() {
       document.getElementById('globe-hero').style.display = 'none';
       document.getElementById('map2d').style.display = 'block';
       document.getElementById('globe-controls').style.display = 'none';
+      if (osmBuildings) osmBuildings.show = false;
+      viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
       resetPin();
       initLeaflet();
       setTimeout(function () { leafletMap.invalidateSize(); }, 50);
@@ -490,6 +871,8 @@
       document.getElementById('map2d').style.display = 'none';
       document.getElementById('globe-hero').style.display = 'block';
       document.getElementById('globe-controls').style.display = '';
+      if (osmBuildings) osmBuildings.show = false;
+      viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
       resetPin();
     }
 
@@ -501,17 +884,35 @@
       document.getElementById(id).classList.add('active');
     }
 
+    // ════════════════════════════════════════════════════════════════
+    //  PANNEAU FILTRES
+    // ════════════════════════════════════════════════════════════════
+    document.getElementById('filter-toggle').addEventListener('click', function () {
+      this.classList.toggle('open');
+      document.getElementById('filter-panel').classList.toggle('open');
+    });
+
+    document.getElementById('filter-capitals').addEventListener('change', function () {
+      capitalsVisible = this.checked;
+      capitalEntities3D.forEach(function (e) { e.show = capitalsVisible; });
+      if (capitalLayerGroup && leafletMap) {
+        if (capitalsVisible) capitalLayerGroup.addTo(leafletMap);
+        else leafletMap.removeLayer(capitalLayerGroup);
+      }
+    });
+
+    document.getElementById('btn-4d').addEventListener('click', function () {
+      if (activeView !== '4d') { show4D(); activeView = '4d'; }
+      setActive('btn-4d');
+    });
+
     document.getElementById('btn-3d').addEventListener('click', function () {
-      if (activeView === '2d') { show3D(); }
-      activeView = '3d';
+      if (activeView !== '3d') { show3D(); activeView = '3d'; }
       setActive('btn-3d');
     });
 
     document.getElementById('btn-2d').addEventListener('click', function () {
-      if (activeView !== '2d') {
-        show2D();
-        activeView = '2d';
-      }
+      if (activeView !== '2d') { show2D(); activeView = '2d'; }
       setActive('btn-2d');
     });
 
