@@ -434,11 +434,15 @@
     var countriesVisible   = true;
 
     // Aéronefs ADS-B
-    var aircraftData        = [];
-    var aircraftBillboards  = null;   // Cesium BillboardCollection
-    var aircraftMarkers2D   = null;   // Leaflet LayerGroup
+    var aircraftData        = [];          // compat
+    var aircraftBillboards  = null;        // Cesium BillboardCollection
+    var aircraftMarkers2D   = null;        // Leaflet LayerGroup
     var aircraftVisible     = true;
     var aircraftFetchTimer  = null;
+    var aircraftAnimTimer   = null;        // Dead-reckoning interval (1 s)
+    var aircraftStore       = {};          // hex → {lat, lon, gs, track, alt_baro, flight, country, timestamp}
+    var aircraftBbMap       = {};          // hex → Cesium Billboard (dans aircraftBillboards)
+    var aircraftMkMap       = {};          // hex → Leaflet Marker   (dans aircraftMarkers2D)
 
     // Punaise
     var pinnedCoords  = null;    // null | {lat, lng}
@@ -939,7 +943,21 @@
       });
     }
 
-    // ── Fetch données OpenSky Network (gratuit, CORS, mondial)
+    // ── Dead-reckoning : calcule la nouvelle position à partir de lat/lon, vitesse (kt), cap (°) et Δt (s)
+    function deadReckon(lat, lon, gs_kt, track_deg, dt_s) {
+      if (!gs_kt || gs_kt < 1 || dt_s <= 0 || dt_s > 120) return { lat: lat, lon: lon };
+      var R    = 6371000;                          // rayon terrestre (m)
+      var d    = (gs_kt * 0.5144 * dt_s) / R;     // distance angulaire
+      var brg  = track_deg * Math.PI / 180;
+      var lat1 = lat * Math.PI / 180;
+      var lon1 = lon * Math.PI / 180;
+      var lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brg));
+      var lon2 = lon1 + Math.atan2(Math.sin(brg) * Math.sin(d) * Math.cos(lat1),
+                                   Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+      return { lat: lat2 * 180 / Math.PI, lon: (lon2 * 180 / Math.PI + 540) % 360 - 180 };
+    }
+
+    // ── Fetch données OpenSky Network (gratuit, CORS, mondial) — 1 req/15 s
     // Format état : [icao24, callsign, pays, t_pos, t_vel, lon, lat, alt_baro_m,
     //                on_ground, vitesse_ms, cap, vrate, sensors, alt_geo_m, squawk, spi, src]
     function fetchAircraft() {
@@ -950,97 +968,155 @@
         })
         .then(function (data) {
           if (!data || !data.states) return;
-          // Normaliser vers le format interne {hex, flight, lat, lon, alt_baro, gs, track, t}
-          aircraftData = data.states
+          var now  = Date.now();
+          var seen = {};
+
+          data.states
             .filter(function (s) { return s[5] != null && s[6] != null; })
-            .map(function (s) {
-              var altM  = s[7] != null ? s[7] : (s[13] != null ? s[13] : 0);
-              return {
-                hex:      s[0] || '',
-                flight:   (s[1] || s[0] || '').trim(),
-                country:  s[2] || '',
-                lat:      s[6],
-                lon:      s[5],
-                alt_baro: s[8] ? 'ground' : Math.round(altM / 0.3048), // m → ft
-                gs:       Math.round((s[9] || 0) * 1.944),              // m/s → kt
-                track:    s[10] || 0,
-                t:        ''   // OpenSky ne fournit pas le type en accès anonyme
+            .forEach(function (s) {
+              var hex = s[0] || '';
+              if (!hex) return;
+              seen[hex] = true;
+              var altM = s[7] != null ? s[7] : (s[13] != null ? s[13] : 0);
+              aircraftStore[hex] = {
+                hex:       hex,
+                flight:    (s[1] || hex).trim(),
+                country:   s[2] || '',
+                lat:       s[6],
+                lon:       s[5],
+                alt_baro:  s[8] ? 'ground' : Math.round(altM / 0.3048), // m → ft
+                gs:        Math.round((s[9] || 0) * 1.944),              // m/s → kt
+                track:     s[10] || 0,
+                timestamp: now
               };
             });
-          updateAircraftDisplay();
+
+          // Retirer les aéronefs absents du dernier relevé
+          Object.keys(aircraftStore).forEach(function (hex) {
+            if (!seen[hex]) {
+              if (aircraftBillboards && aircraftBbMap[hex]) {
+                try { aircraftBillboards.remove(aircraftBbMap[hex]); } catch (e) {}
+              }
+              if (aircraftMarkers2D && aircraftMkMap[hex]) {
+                try { aircraftMarkers2D.removeLayer(aircraftMkMap[hex]); } catch (e) {}
+              }
+              delete aircraftBbMap[hex];
+              delete aircraftMkMap[hex];
+              delete aircraftStore[hex];
+            }
+          });
+
+          // Synchroniser les objets d'affichage (créer ceux qui n'existent pas encore)
+          syncAircraftDisplay();
         })
         .catch(function (err) { console.warn('[ADS-B OpenSky]', err); });
     }
 
-    // ── Rendu 3D/4D (Cesium BillboardCollection)
-    function updateAircraft3D() {
+    // ── Sync affichage après chaque fetch (crée les objets manquants)
+    function syncAircraftDisplay() {
+      if (activeView === '2d') {
+        if (aircraftBillboards) { aircraftBillboards.removeAll(); aircraftBbMap = {}; }
+        syncAircraft2D();
+      } else {
+        syncAircraft3D();
+      }
+    }
+
+    // ── Sync Cesium : crée ou met à jour les billboards
+    function syncAircraft3D() {
+      if (!viewer) return;
       if (!aircraftBillboards) {
         aircraftBillboards = viewer.scene.primitives.add(new Cesium.BillboardCollection());
       }
-      aircraftBillboards.removeAll();
       if (!aircraftVisible) return;
 
-      aircraftData.forEach(function (a) {
+      Object.keys(aircraftStore).forEach(function (hex) {
+        var a    = aircraftStore[hex];
         var altFt = (a.alt_baro === 'ground' || a.alt_baro == null) ? 0 : Number(a.alt_baro);
         var altM  = Math.max(0, altFt * 0.3048);
-        var track = a.track || 0;
-        aircraftBillboards.add({
-          position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, altM),
-          image:    AIRCRAFT_CANVAS,
-          width:    18,
-          height:   18,
-          // rotation Cesium : sens anti-horaire depuis l'axe x (est) → convertir track (horaire depuis nord)
-          rotation:  Cesium.Math.toRadians(-track),
-          alignedAxis: Cesium.Cartesian3.ZERO,
-          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 6e6),
-          id: {
-            isAircraft: true,
-            flight: (a.flight || a.hex || '?').trim(),
-            type:   a.t  || '',
-            altFt:  altFt,
-            gs:     Math.round(a.gs || 0)
-          }
-        });
+        if (aircraftBbMap[hex]) {
+          // Mettre à jour billboard existant
+          aircraftBbMap[hex].position = Cesium.Cartesian3.fromDegrees(a.lon, a.lat, altM);
+          aircraftBbMap[hex].rotation = Cesium.Math.toRadians(-(a.track || 0));
+        } else {
+          // Créer nouveau billboard
+          var bb = aircraftBillboards.add({
+            position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, altM),
+            image:    AIRCRAFT_CANVAS,
+            width:    18, height: 18,
+            rotation: Cesium.Math.toRadians(-(a.track || 0)),
+            alignedAxis: Cesium.Cartesian3.ZERO,
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 6e6),
+            id: { isAircraft: true, flight: (a.flight || a.hex || '?').trim(),
+                  altFt: altFt, gs: Math.round(a.gs || 0) }
+          });
+          aircraftBbMap[hex] = bb;
+        }
       });
     }
 
-    // ── Rendu 2D (Leaflet LayerGroup)
-    function updateAircraft2D() {
+    // ── Sync Leaflet : crée ou met à jour les marqueurs (limité à 2000)
+    function syncAircraft2D() {
       if (!leafletMap) return;
-      if (aircraftMarkers2D) leafletMap.removeLayer(aircraftMarkers2D);
-      aircraftMarkers2D = L.layerGroup();
+      if (!aircraftMarkers2D) {
+        aircraftMarkers2D = L.layerGroup().addTo(leafletMap);
+      }
       if (!aircraftVisible) return;
 
-      var subset = aircraftData.length > 2000 ? aircraftData.slice(0, 2000) : aircraftData;
-      subset.forEach(function (a) {
+      var hexList = Object.keys(aircraftStore);
+      var count   = 0;
+      hexList.forEach(function (hex) {
+        if (count >= 2000) return;
+        var a        = aircraftStore[hex];
         var altFt    = (a.alt_baro === 'ground' || a.alt_baro == null) ? 0 : Number(a.alt_baro);
         var callsign = (a.flight || a.hex || '?').trim();
         var tip = '<b style="font-size:12px">' + callsign + '</b>' +
-          (a.t  ? '<br><span style="color:rgba(140,180,220,0.7)">' + a.t + '</span>' : '') +
           (a.country ? '<br><span style="color:rgba(140,180,220,0.55);font-size:10px">' + a.country + '</span>' : '') +
           '<br>Alt : ' + (a.alt_baro === 'ground' ? 'Sol' : Math.round(altFt).toLocaleString('fr') + ' ft') +
           '&nbsp;&nbsp;Vit : ' + Math.round(a.gs || 0) + ' kt';
-        L.marker([a.lat, a.lon], {
-          icon: makeAircraftIcon(a.track || 0),
-          interactive: true,
-          zIndexOffset: 100
-        })
-        .bindTooltip(tip, { direction: 'top', offset: [0, -11], opacity: 1 })
-        .addTo(aircraftMarkers2D);
+        if (aircraftMkMap[hex]) {
+          aircraftMkMap[hex].setLatLng([a.lat, a.lon]);
+          aircraftMkMap[hex].setIcon(makeAircraftIcon(a.track || 0));
+        } else {
+          var mk = L.marker([a.lat, a.lon], {
+            icon: makeAircraftIcon(a.track || 0),
+            interactive: true,
+            zIndexOffset: 100
+          }).bindTooltip(tip, { direction: 'top', offset: [0, -11], opacity: 1 });
+          mk.addTo(aircraftMarkers2D);
+          aircraftMkMap[hex] = mk;
+        }
+        count++;
       });
-      aircraftMarkers2D.addTo(leafletMap);
     }
 
-    // ── Mise à jour selon la vue active
-    function updateAircraftDisplay() {
-      if (activeView === '2d') {
-        // Vider les billboards Cesium
-        if (aircraftBillboards) aircraftBillboards.removeAll();
-        updateAircraft2D();
+    // ── Tick dead-reckoning (toutes les secondes) : déplace les aéronefs entre les fetches
+    function animateAircraft() {
+      if (!aircraftVisible) return;
+      var now = Date.now();
+      if (activeView !== '2d') {
+        // ── Cesium ──
+        if (!aircraftBillboards) return;
+        Object.keys(aircraftStore).forEach(function (hex) {
+          var a  = aircraftStore[hex];
+          var bb = aircraftBbMap[hex];
+          if (!bb || a.alt_baro === 'ground') return;
+          var dt   = (now - a.timestamp) / 1000;
+          var pos  = deadReckon(a.lat, a.lon, a.gs, a.track, dt);
+          var altM = Math.max(0, Number(a.alt_baro) * 0.3048);
+          bb.position = Cesium.Cartesian3.fromDegrees(pos.lon, pos.lat, altM);
+        });
       } else {
-        // Vider les marqueurs Leaflet
-        if (aircraftMarkers2D && leafletMap) leafletMap.removeLayer(aircraftMarkers2D);
-        updateAircraft3D();
+        // ── Leaflet ──
+        if (!leafletMap) return;
+        Object.keys(aircraftStore).forEach(function (hex) {
+          var a  = aircraftStore[hex];
+          var mk = aircraftMkMap[hex];
+          if (!mk || a.alt_baro === 'ground') return;
+          var dt  = (now - a.timestamp) / 1000;
+          var pos = deadReckon(a.lat, a.lon, a.gs, a.track, dt);
+          mk.setLatLng([pos.lat, pos.lon]);
+        });
       }
     }
 
